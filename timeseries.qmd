@@ -1,0 +1,131 @@
+---
+title: "Impact of Interest Rate Changes on Swiss Stock Prices"
+author: "Your Name"
+date: "2024-05-29"
+format: html
+editor: visual
+---
+
+# Introduction
+
+This study aims to analyze how changes in interest rates influence the stock prices of selected Swiss companies or industries over time. Additionally, we investigate the correlation between interest rate changes and daily stock price movements over a five-year period and whether there is a significant relationship between interest rate changes and stock price volatility.
+
+# Methodology
+
+## Data Collection
+
+First, we collected historical data on Swiss interest rates and stock prices. The interest rates were obtained from the Swiss National Bank (SNB), while stock prices were fetched from Yahoo Finance.
+
+
+
+```{r}
+# Install and load necessary packages
+if (!requireNamespace("quantmod")) install.packages("quantmod")
+if (!requireNamespace("dplyr")) install.packages("dplyr")
+if (!requireNamespace("vars")) install.packages("vars")
+if (!requireNamespace("broom")) install.packages("broom")
+if (!requireNamespace("ggplot2")) install.packages("ggplot2")
+library(quantmod)
+library(dplyr)
+library(vars)
+library(broom)
+library(ggplot2)
+library(magrittr)
+```
+
+## Data Collection
+```{r}
+# Get interest rate data (e.g., Federal Funds Rate)
+getSymbols("DFF", src = "FRED")
+interest_rates <- DFF
+
+# Get stock prices for selected companies or indices
+symbols <- c("AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NFLX", "NVDA", "JPM", "BAC")
+getSymbols(symbols, src = "yahoo", from = "2015-01-01", to = "2020-12-31")
+stock_prices <- do.call(merge, lapply(symbols, function(sym) Cl(get(sym))))
+colnames(stock_prices) <- symbols
+```
+
+## Data Cleaning and Preprocessing
+```{r}
+# Remove missing values
+stock_prices <- na.omit(stock_prices)
+interest_rates <- na.omit(interest_rates)
+
+# Normalize data
+stock_prices <- scale(stock_prices)
+interest_rates <- scale(interest_rates)
+
+# Prepare data for time series analysis
+stock_prices_ts <- ts(stock_prices, frequency = 252)
+interest_rates_ts <- ts(interest_rates, frequency = 252)
+
+# Remove missing values
+stock_prices <- na.omit(stock_prices)
+interest_rates <- na.omit(interest_rates)
+
+# Normalize data
+stock_prices <- scale(stock_prices)
+interest_rates <- scale(interest_rates)
+
+# Prepare data for time series analysis
+stock_prices_ts <- ts(stock_prices, frequency = 252)
+interest_rates_ts <- ts(interest_rates, frequency = 252)
+```
+
+Exploratory Data Analysis (EDA)
+```{r}
+# Plot stock prices
+plot.zoo(stock_prices, main = "Stock Prices", col = 1:10, screens = 1, lty = 1:10)
+legend("topright", legend = symbols, col = 1:10, lty = 1:10)
+
+# Plot interest rates
+plot.zoo(interest_rates, main = "Interest Rates")
+
+
+```
+## Modelling
+
+```{r}
+# Combine interest rates and stock prices into one data frame
+combined_data <- cbind(interest_rates, stock_prices)
+colnames(combined_data) <- c("Interest_Rate", symbols)
+
+# Remove any remaining missing values after combining
+combined_data <- na.omit(combined_data)
+
+# Prepare data for time series analysis
+combined_data_ts <- ts(combined_data, frequency = 252)
+
+# Split data into training and testing sets
+train_size <- floor(0.8 * nrow(combined_data))
+train_data <- combined_data[1:train_size, ]
+test_data <- combined_data[(train_size + 1):nrow(combined_data), ]
+
+# Train the VAR model
+library(vars)
+var_model <- VAR(train_data, p = 2)
+
+# Validate the model
+predictions <- predict(var_model, n.ahead = nrow(test_data))
+
+```
+
+## Hypothesis Testing and Analysis
+```{r}
+# Granger causality test
+granger_test <- causality(var_model, cause = "Interest_Rate")
+print(granger_test)
+
+# Impulse response function
+irf <- irf(var_model, impulse = "Interest_Rate", response = symbols)
+plot(irf)
+
+```
+
+
+
+
+
+
+
