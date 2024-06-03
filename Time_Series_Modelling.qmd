@@ -32,6 +32,8 @@ library(quantmod)
 library(kableExtra)
 library(tidyverse)
 library(ggplot2)
+library(dplyr)
+library(kableExtra)
 
 
 ```
@@ -46,19 +48,53 @@ library(ggplot2)
 ```{r}
 
 invisible(getSymbols("FEDFUNDS", src = "FRED"))
-fed_funds <- data.frame(date = index(FEDFUNDS), rate = coredata(FEDFUNDS))
+fed_funds_df <- data.frame(date = index(FEDFUNDS), rate = coredata(FEDFUNDS))
 
-daten <- fed_funds %>%
-  mutate(change_rate = FEDFUNDS/lag(FEDFUNDS),
-         change_difference = FEDFUNDS - lag(FEDFUNDS))
+daten <- fed_funds_df %>%
+  rename(rate = FEDFUNDS) %>% 
+  mutate(change_rate = rate/lag(rate),
+         change_difference = rate - lag(rate)) %>% 
+  mutate(across(where(is.numeric),~round(.x,2)))
 
+#deskriptive Statistik
+desk_daten <- daten %>% 
+  summarise(min_rate = min(rate),
+            mean_rate = mean(rate),
+            max_rate = max(rate)) %>% 
+  mutate(across(where(is.numeric),~round(.x,2)))%>% 
+  kbl(caption = "Deskriptive Statisitik der Zinsen",
+      col.names = c("Minimum","Durschnitt","Maximum"),
+      align = "cccc",
+      escape = FALSE) %>% 
+  kable_classic_2(full_width = FALSE)
+  
+  
+
+desk_daten
 head(daten)
+
+
+
+# Plots:
 
 ggplot(daten,aes(x = date,
                  y = FEDFUNDS))+
   geom_line()+
-  theme_economist()
-  
+  theme_economist()+
+  labs(title="Zinssätze der US-Notenbank:",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "Jahr",
+       y = "Zinssatz")+
+  theme(plot.title = element_text(face = "bold", size = 16, hjust = 0.5, color = "darkblue"))
+
+ggplot(daten,aes(x = date,
+                 y = change_difference))+
+  geom_line()+
+  theme_economist()+
+  labs(title="Änderungsdifferenz der Zinssätze der US-Notenbank",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "Jahr",
+       y = "Änderungsdifferenz (%)") 
 
 ```
 
