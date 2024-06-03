@@ -1,0 +1,79 @@
+---
+title: "Times Series Modelling"
+author: "Benjamin Würmli, Murat Kayhan und Velican Kaya"
+author-title: "Autoren"
+published-title: "Veröffentlicht"
+date: last-modified
+date-format: "DD.MM.YYYY"
+title-block-banner: "#003366"
+format: 
+   html:
+     toc: true
+     toc-location: left
+     toc-title: "Inhaltsverzeichnis"
+     theme: cosmo
+     embed-resources: true
+     page-layout: full
+
+knitr: 
+  opts_chunk: 
+    echo: false
+    message: false
+    warning: false
+css: styling.css
+---
+
+```{r}
+
+#notwendige libraries
+
+library(ggthemes)
+library(quantmod)
+library(kableExtra)
+library(tidyverse)
+library(ggplot2)
+
+
+```
+
+## Übersicht
+
+
+## Fragestellung
+
+
+## Datenwrangling
+```{r}
+
+invisible(getSymbols("FEDFUNDS", src = "FRED"))
+fed_funds <- data.frame(date = index(FEDFUNDS), rate = coredata(FEDFUNDS))
+
+daten <- fed_funds %>%
+  mutate(change_rate = FEDFUNDS/lag(FEDFUNDS),
+         change_difference = FEDFUNDS - lag(FEDFUNDS))
+
+head(daten)
+
+ggplot(daten,aes(x = date,
+                 y = FEDFUNDS))+
+  geom_line()+
+  theme_economist()
+  
+
+```
+
+
+
+## Times Series Modelling
+
+
+## Analysen
+
+
+## Diskussion
+
+
+
+## Referenzen
+::: {#refs}
+:::

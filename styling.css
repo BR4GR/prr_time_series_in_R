@@ -1,0 +1,15 @@
+body {
+    background-color: #F0F0F0; /* Hellgrauer Hintergrund */
+    color: #333333; /* Dunkelgrauer Text */
+}
+
+h1{
+  color:#FFFFFF; /*Überschrift 1 in weiss*/
+}
+
+h2, h3, h4, h5, h6 {
+    color: #003366; /* Blau für Überschriften */
+}
+
+
+
