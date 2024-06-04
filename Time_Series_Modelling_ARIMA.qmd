@@ -1,0 +1,256 @@
+---
+title: "Times Series Modelling"
+author: "Benjamin Würmli, Murat Kayhan und Velican Kaya"
+author-title: "Autoren"
+published-title: "Veröffentlicht"
+date: last-modified
+date-format: "DD.MM.YYYY"
+title-block-banner: "#003366"
+format: 
+   html:
+     toc: true
+     toc-location: left
+     toc-title: "Inhaltsverzeichnis"
+     theme: cosmo
+     embed-resources: true
+     page-layout: full
+
+knitr: 
+  opts_chunk: 
+    echo: false
+    message: false
+    warning: false
+css: styling.css
+---
+
+```{r}
+# Pakete laden
+if (!requireNamespace("quantmod")) install.packages("quantmod")
+if (!requireNamespace("dplyr")) install.packages("dplyr")
+if (!requireNamespace("vars")) install.packages("vars")
+if (!requireNamespace("broom")) install.packages("broom")
+if (!requireNamespace("ggplot2")) install.packages("ggplot2")
+if (!requireNamespace("kableExtra", quietly = TRUE)) install.packages("kableExtra")
+if (!requireNamespace("ggthemes", quietly = TRUE)) install.packages("ggthemes")
+if (!requireNamespace("magrittr", quietly = TRUE)) install.packages("magrittr")
+if (!requireNamespace("caret", quietly = TRUE)) install.packages("caret")
+if (!requireNamespace("tseries", quietly = TRUE)) install.packages("tseries")
+if (!requireNamespace("lubridate", quietly = TRUE)) install.packages("lubridate")
+if (!requireNamespace("rugarch", quietly = TRUE)) install.packages("rugarch")
+if (!requireNamespace("forecast", quietly = TRUE)) install.packages("forecast")
+
+library(ggthemes)
+library(kableExtra)
+library(quantmod)
+library(dplyr)
+library(vars)
+library(broom)
+library(ggplot2)
+library(forecast)
+library(magrittr)
+library(caret)
+library(tseries)
+library(lubridate)
+library(rugarch)
+```
+
+## Übersicht
+
+
+## Fragestellung
+
+
+## EDA
+```{r}
+# Daten laden
+invisible(getSymbols("FEDFUNDS", src = "FRED"))
+fed_funds_df <- data.frame(date = index(FEDFUNDS), rate = coredata(FEDFUNDS))
+
+daten <- fed_funds_df %>%
+  rename(rate = FEDFUNDS) %>% 
+  mutate(change_rate = rate/lag(rate),
+         change_difference = rate - lag(rate)) %>% 
+  mutate(across(where(is.numeric),~round(.x,2)))
+
+# Deskriptive Statistik
+desk_daten <- daten %>% 
+  summarise(min_rate = min(rate),
+            mean_rate = mean(rate),
+            max_rate = max(rate)) %>% 
+  mutate(across(where(is.numeric),~round(.x,2)))%>% 
+  kbl(caption = "Deskriptive Statisitik der Zinsen",
+      col.names = c("Minimum","Durschnitt","Maximum"),
+      align = "cccc",
+      escape = FALSE) %>% 
+  kable_classic_2(full_width = FALSE)
+  
+desk_daten
+head(daten)
+
+# Plots:
+ggplot(daten,aes(x = date, y = rate)) +
+  geom_line() +
+  theme_economist() +
+  labs(title="Zinssätze der US-Notenbank:", 
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "Jahr",
+       y = "Zinssatz") +
+  theme(plot.title = element_text(face = "bold", size = 16, hjust = 0.5, color = "darkblue"))
+
+ggplot(daten,aes(x = date, y = change_difference)) +
+  geom_line() +
+  theme_economist() +
+  labs(title="Änderungsdifferenz der Zinssätze der US-Notenbank", 
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "Jahr",
+       y = "Änderungsdifferenz (%)") 
+
+
+```
+
+
+
+## Times Series Modelling
+
+```{r}
+# Get S&P 500 index data
+getSymbols("^GSPC", src = "yahoo", from = "2000-01-01")
+sp500 <- Cl(GSPC)
+
+# Plot the original data
+autoplot(sp500) + ggtitle("S&P 500 Index") + ylab("Price") + xlab("Date")
+
+# Differenzieren der Zeitreihe
+sp500_diff <- diff(sp500, differences = 1)
+
+# Plot ACF und PACF der differenzierten Zeitreihe
+acf_diff_plot <- ggAcf(sp500_diff, na.action = na.omit) + ggtitle("ACF of Differenzierten S&P 500")
+pacf_diff_plot <- ggPacf(sp500_diff, na.action = na.omit) + ggtitle("PACF of Differenzierten S&P 500")
+
+# Display ACF and PACF plots
+print(acf_diff_plot)
+print(pacf_diff_plot)
+
+# Teste verschiedene ARIMA-Modelle
+best_aic <- Inf
+best_order <- c(0,0,0)
+best_model <- NULL
+
+for (p in 0:5) {
+  for (d in 0:2) {
+    for (q in 0:5) {
+      model <- tryCatch(auto.arima(sp500, seasonal = FALSE, max.p = p, max.d = d, max.q = q), error = function(e) NULL)
+      if (!is.null(model)) {
+        if (model$aic < best_aic) {
+          best_aic <- model$aic
+          best_order <- c(p, d, q)
+          best_model <- model
+        }
+      }
+    }
+  }
+}
+
+# Zusammenfassung des besten Modells
+summary(best_model)
+
+# Residualanalyse des besten Modells
+residuals_best_model <- residuals(best_model)
+
+# Plot der Residuen
+autoplot(residuals_best_model) +
+  ggtitle("Residuals of Best ARIMA Model") +
+  xlab("Time") +
+  ylab("Residuals")
+
+# ACF und PACF der Residuen plotten
+acf_resid <- ggAcf(residuals_best_model) + ggtitle("ACF of Residuals")
+pacf_resid <- ggPacf(residuals_best_model) + ggtitle("PACF of Residuals")
+
+# Display residual plots
+print(acf_resid)
+print(pacf_resid)
+
+# Ljung-Box-Test für Unabhängigkeit der Residuen
+box_test <- Box.test(residuals_best_model, lag = 20, type = "Ljung-Box")
+print(box_test)
+
+```
+```{r}
+# GARCH model specification
+spec <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                   mean.model = list(armaOrder = best_order, include.mean = TRUE),
+                   distribution.model = "norm")
+
+# Fit the GARCH model
+garch_model <- tryCatch(ugarchfit(spec = spec, data = sp500_diff), error = function(e) NULL)
+
+if (!is.null(garch_model)) {
+  # Zusammenfassung des GARCH-Modells
+  print(garch_model)
+  
+  # Vorhersage des GARCH-Modells
+  garch_forecast <- ugarchforecast(garch_model, n.ahead = 252)
+  
+  # Visualisierung der GARCH-Vorhersage
+  garch_forecast_mean <- garch_forecast@forecast$seriesFor
+  garch_forecast_lower <- garch_forecast@forecast$sigmaFor * qnorm(0.025)
+  garch_forecast_upper <- garch_forecast@forecast$sigmaFor * qnorm(0.975)
+  
+  forecast_dates <- index(sp500)[length(sp500)] + 1:252
+  
+  garch_forecast_df <- data.frame(
+    Date = forecast_dates,
+    Mean = as.numeric(garch_forecast_mean),
+    Lower = as.numeric(garch_forecast_mean + garch_forecast_lower),
+    Upper = as.numeric(garch_forecast_mean + garch_forecast_upper)
+  )
+  
+  # Plot der GARCH-Vorhersage
+  ggplot() +
+    geom_line(data = as.data.frame(sp500), aes(x = index(sp500), y = sp500), color = "black") +
+    geom_line(data = garch_forecast_df, aes(x = Date, y = Mean), color = "blue") +
+    geom_ribbon(data = garch_forecast_df, aes(x = Date, ymin = Lower, ymax = Upper), fill = "lightblue", alpha = 0.5) +
+    ggtitle("GARCH Forecast for S&P 500") +
+    xlab("Date") +
+    ylab("S&P 500") +
+    theme_minimal() +
+    scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "2 years")
+}
+
+# Plot der Vorhersage des besten ARIMA-Modells
+forecast_best_model <- forecast(best_model, h = 252)
+
+forecast_dates <- index(sp500)[length(sp500)] + 1:252
+
+last_observation <- as.Date(index(sp500)[length(sp500)])
+
+forecast_df <- data.frame(
+  Date = c(index(sp500), forecast_dates),
+  Value = c(as.numeric(sp500), as.numeric(forecast_best_model$mean)),
+  Lower = c(rep(NA, length(sp500)), as.numeric(forecast_best_model$lower[, 2])),
+  Upper = c(rep(NA, length(sp500)), as.numeric(forecast_best_model$upper[, 2]))
+)
+
+# Plot der Vorhersage und der letzten Beobachtungen
+ggplot() +
+  geom_line(data = forecast_df, aes(x = Date, y = Value), color = "blue") +
+  geom_ribbon(data = forecast_df, aes(x = Date, ymin = Lower, ymax = Upper), fill = "lightblue", alpha = 0.5) +
+  ggtitle("Forecast for S&P 500 with ARIMA Model") +
+  xlab("Date") +
+  ylab("S&P 500") +
+  theme_minimal() +
+  scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "2 years") +
+  coord_cartesian(xlim = c(as.Date(last_observation - 100), as.Date(last_observation + 252)))
+
+```
+
+## Analysen
+
+
+## Diskussion
+
+
+
+## Referenzen
+
