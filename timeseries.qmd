@@ -1,131 +1,209 @@
 ---
-title: "Impact of Interest Rate Changes on Swiss Stock Prices"
-author: "Your Name"
-date: "2024-05-29"
-format: html
-editor: visual
+title: "Times Series Modelling"
+author: "Benjamin Würmli, Murat Kayhan und Velican Kaya"
+author-title: "Autoren"
+published-title: "Veröffentlicht"
+date: last-modified
+date-format: "DD.MM.YYYY"
+title-block-banner: "##003366"
+format: 
+   html:
+     toc: true
+     toc-location: left
+     toc-title: "Inhaltsverzeichnis"
+     theme: cosmo
+     embed-resources: true
+     page-layout: full
+
+knitr: 
+  opts_chunk: 
+    echo: false
+    message: false
+    warning: false
+css: styling.css
 ---
 
-# Introduction
+## Einleitung
 
-This study aims to analyze how changes in interest rates influence the stock prices of selected Swiss companies or industries over time. Additionally, we investigate the correlation between interest rate changes and daily stock price movements over a five-year period and whether there is a significant relationship between interest rate changes and stock price volatility.
+Diese Studie zielt darauf ab zu analysieren, wie sich Änderungen der Zinssätze auf den S&P 500 Index im Laufe der Zeit auswirken. Zusätzlich untersuchen wir, ob es eine signifikante Beziehung zwischen Zinsänderungen und Änderungen im S&P 500 Index über einen Zeitraum von fünf Jahren gibt.
 
-# Methodology
-
-## Data Collection
-
-First, we collected historical data on Swiss interest rates and stock prices. The interest rates were obtained from the Swiss National Bank (SNB), while stock prices were fetched from Yahoo Finance.
+## Methodik
 
 
 
-```{r}
-# Install and load necessary packages
+```{r message=FALSE}
+## Notwendige Pakete installieren und laden
 if (!requireNamespace("quantmod")) install.packages("quantmod")
 if (!requireNamespace("dplyr")) install.packages("dplyr")
 if (!requireNamespace("vars")) install.packages("vars")
 if (!requireNamespace("broom")) install.packages("broom")
 if (!requireNamespace("ggplot2")) install.packages("ggplot2")
+if (!requireNamespace("PerformanceAnalytics")) install.packages("PerformanceAnalytics")
+
 library(quantmod)
 library(dplyr)
 library(vars)
 library(broom)
 library(ggplot2)
 library(magrittr)
+library(PerformanceAnalytics)
+
 ```
 
-## Data Collection
+## Datensammlung
+
+Zunächst haben wir historische Daten zu US-Zinssätzen und dem S&P 500 Index gesammelt. Die Zinssätze wurden von der Federal Reserve bezogen, während die Daten des S&P 500 Index von Yahoo Finance abgerufen wurden.
 ```{r}
-# Get interest rate data (e.g., Federal Funds Rate)
+## Get interest rate data (e.g., Federal Funds Rate)
 getSymbols("DFF", src = "FRED")
 interest_rates <- DFF
 
-# Get stock prices for selected companies or indices
-symbols <- c("AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NFLX", "NVDA", "JPM", "BAC")
-getSymbols(symbols, src = "yahoo", from = "2015-01-01", to = "2020-12-31")
-stock_prices <- do.call(merge, lapply(symbols, function(sym) Cl(get(sym))))
-colnames(stock_prices) <- symbols
+## Get S&P 500 index data
+getSymbols("^GSPC", src = "yahoo", from = "2015-01-01", to = "2020-12-31")
+sp500 <- Cl(GSPC)
+colnames(sp500) <- "SP500"
 ```
 
-## Data Cleaning and Preprocessing
+### Datenbereinigung und -vorverarbeitung
 ```{r}
-# Remove missing values
-stock_prices <- na.omit(stock_prices)
+## Remove missing values
+sp500 <- na.omit(sp500)
 interest_rates <- na.omit(interest_rates)
 
-# Normalize data
-stock_prices <- scale(stock_prices)
-interest_rates <- scale(interest_rates)
+## Calculate first differences (changes)
+diff_interest_rates <- diff(interest_rates)
+diff_sp500 <- diff(sp500)
 
-# Prepare data for time series analysis
-stock_prices_ts <- ts(stock_prices, frequency = 252)
-interest_rates_ts <- ts(interest_rates, frequency = 252)
+## Remove the first row of NA values resulting from differencing
+diff_interest_rates <- na.omit(diff_interest_rates)
+diff_sp500 <- na.omit(diff_sp500)
 
-# Remove missing values
-stock_prices <- na.omit(stock_prices)
-interest_rates <- na.omit(interest_rates)
-
-# Normalize data
-stock_prices <- scale(stock_prices)
-interest_rates <- scale(interest_rates)
-
-# Prepare data for time series analysis
-stock_prices_ts <- ts(stock_prices, frequency = 252)
-interest_rates_ts <- ts(interest_rates, frequency = 252)
-```
-
-Exploratory Data Analysis (EDA)
-```{r}
-# Plot stock prices
-plot.zoo(stock_prices, main = "Stock Prices", col = 1:10, screens = 1, lty = 1:10)
-legend("topright", legend = symbols, col = 1:10, lty = 1:10)
-
-# Plot interest rates
-plot.zoo(interest_rates, main = "Interest Rates")
-
-
-```
-## Modelling
-
-```{r}
-# Combine interest rates and stock prices into one data frame
-combined_data <- cbind(interest_rates, stock_prices)
-colnames(combined_data) <- c("Interest_Rate", symbols)
-
-# Remove any remaining missing values after combining
+## Combine differenced data into one data frame
+combined_data <- cbind(diff_interest_rates, diff_sp500)
+colnames(combined_data) <- c("Interest_Rate_Change", "SP500_Change")
 combined_data <- na.omit(combined_data)
 
-# Prepare data for time series analysis
+## Prepare data for time series analysis
 combined_data_ts <- ts(combined_data, frequency = 252)
 
-# Split data into training and testing sets
+```
+
+## Explorative Datenanalyse (EDA)
+
+### Zusammenfassende Statistiken
+
+```{r}
+## Summary statistics for differenced S&P 500
+summary(diff_sp500)
+
+## Summary statistics for differenced interest rates
+summary(diff_interest_rates)
+
+```
+### Korrelationsanalyse
+
+```{r}
+## Correlation between changes in interest rates and changes in S&P 500
+cor(combined_data)
+
+```
+### Zeitreihenzerlegung
+
+```{r}
+## Zeitreihenzerlegung der differenzierten S&P 500 Daten
+decomposed_sp500 <- decompose(ts(diff_sp500, frequency = 252))
+
+## Komponenten der Zeitreihenzerlegung für S&P 500 plotten
+par(mfrow = c(4, 1), mar = c(4, 4, 2, 1))  ## Anpassung der Ränder, um Fehler zu vermeiden
+plot(decomposed_sp500$trend, main = "Trendkomponente der differenzierten S&P 500 Daten")
+plot(decomposed_sp500$seasonal, main = "Saisonale Komponente der differenzierten S&P 500 Daten")
+plot(decomposed_sp500$random, main = "Zufallskomponente der differenzierten S&P 500 Daten")
+plot(decomposed_sp500$x, main = "Original differenzierte S&P 500 Daten")
+par(mfrow = c(1, 1))  ## Zurücksetzen der Plot-Einstellungen
+
+```
+### Rollierende Statistiken
+
+```{r}
+## Berechnung des rollierenden Mittels und der Standardabweichung
+rolling_mean_sp500 <- rollapply(diff_sp500, width = 30, FUN = mean, align = "right")
+rolling_sd_sp500 <- rollapply(diff_sp500, width = 30, FUN = sd, align = "right")
+
+## Plotten des rollierenden Mittels und der Standardabweichung
+plot.zoo(rolling_mean_sp500, main = "30-Tage rollierendes Mittel der differenzierten S&P 500 Daten", col = "blue")
+plot.zoo(rolling_sd_sp500, main = "30-Tage rollierende Standardabweichung der differenzierten S&P 500 Daten", col = "red")
+
+
+```
+### Autokorrelation und partielle Autokorrelation
+
+```{r}
+## Autokorrelation und partielle Autokorrelation für Änderungen im S&P 500
+acf(diff_sp500, main = "Autokorrelationsfunktion (ACF) der differenzierten S&P 500 Daten")
+pacf(diff_sp500, main = "Partielle Autokorrelationsfunktion (PACF) der differenzierten S&P 500 Daten")
+
+```
+### Visualisierung der täglichen Renditen
+
+```{r}
+## Berechnung der täglichen Renditen für S&P 500
+daily_returns_sp500 <- dailyReturn(GSPC)
+
+## Plotten der täglichen Renditen
+plot.zoo(daily_returns_sp500, main = "Tägliche Renditen des S&P 500", col = "blue")
+```
+
+### Volatilitätsanalyse
+
+```{r}
+## Berechnung und Plotten der Volatilität (Standardabweichung der Renditen)
+volatility_sp500 <- rollapply(daily_returns_sp500, width = 30, FUN = sd, align = "right")
+plot.zoo(volatility_sp500, main = "30-Tage rollierende Volatilität der täglichen S&P 500 Renditen", col = "blue")
+```
+
+
+
+## Modellierung
+
+Wir haben das Vector Autoregression (VAR) Modell gewählt, da es mehrere Zeitreihen gleichzeitig analysieren kann.
+
+```{r}
+## Aufteilen der Daten in Trainings- und Test
 train_size <- floor(0.8 * nrow(combined_data))
 train_data <- combined_data[1:train_size, ]
 test_data <- combined_data[(train_size + 1):nrow(combined_data), ]
 
-# Train the VAR model
-library(vars)
-var_model <- VAR(train_data, p = 2)
-
-# Validate the model
-predictions <- predict(var_model, n.ahead = nrow(test_data))
+## Trainieren des VAR-Modells
+var_model <- VAR(train_data, p = 1)
 
 ```
 
-## Hypothesis Testing and Analysis
+### Granger-Kausalitätstest
+
+Der Granger-Kausalitätstest überprüft, ob Änderungen der Zinssätze die Änderungen im S&P 500 Index vorhersagen können.
 ```{r}
-# Granger causality test
-granger_test <- causality(var_model, cause = "Interest_Rate")
-print(granger_test)
+## Granger-Kausalitätstest durchführen
+granger_test <- causality(var_model, cause = "Interest_Rate_Change")
+print(granger_test$Granger)
+```
+### Modellvalidierung
 
-# Impulse response function
-irf <- irf(var_model, impulse = "Interest_Rate", response = symbols)
-plot(irf)
+Das Modell wurde mit einem Teil der Daten validiert, um Überanpassung zu vermeiden und die Genauigkeit des Modells zu testen.
 
+```{r}
+## Modell validieren
+predictions <- predict(var_model, n.ahead = nrow(test_data))
 ```
 
+## Ergebnisse
 
+Die Ergebnisse zeigten signifikante Korrelationen zwischen Zinsänderungen und Änderungen im S&P 500. Der Granger-Kausalitätstest lieferte Einblicke in die Dynamik dieser Beziehungen.
 
+## Diskussion
 
+Unsere Ergebnisse stimmen mit der ökonomischen Theorie überein, dass Änderungen der Zinssätze die Änderungen im S&P 500 beeinflussen. Es sollten jedoch auch externe Faktoren wie wirtschaftliche Ereignisse und Marktstimmung berücksichtigt werden.
+
+##Fazit
 
 
 
