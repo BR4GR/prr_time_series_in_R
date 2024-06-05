@@ -23,92 +23,355 @@ knitr:
 css: styling.css
 ---
 
-```{r}
+```{r} 
+
+#cran Spiegel setzen
+options(repos = c(CRAN = "https://cran.r-project.org"))
 
 #notwendige libraries
 
-library(ggthemes)
-library(quantmod)
-library(kableExtra)
-library(tidyverse)
+# Verwaltung der Projektabhängigkeiten mit `renv`
+#library(renv)
+#renv::init()
+#renv::install(c("ggplot2", "dplyr","ggthemes","quantmod","tidyverse","kableExtra","patchwork","vars","broom","magrittr","caret","tseries","lubridate","rugarch","forecast"))
+
+#renv::snapshot()
+
+# install if required
+if (!requireNamespace("ggplot2")) install.packages("ggplot2")
+if (!requireNamespace("dplyr")) install.packages("dplyr")
+if (!requireNamespace("ggthemes", quietly = TRUE)) install.packages("ggthemes")
+if (!requireNamespace("quantmod")) install.packages("quantmod")
+if (!requireNamespace("tidyverse", quietly = TRUE)) install.packages("tidyverse")
+if (!requireNamespace("kableExtra", quietly = TRUE)) install.packages("kableExtra")
+if (!requireNamespace("patchwork", quietly = TRUE)) install.packages("patchwork")
+if (!requireNamespace("vars")) install.packages("vars")
+if (!requireNamespace("broom")) install.packages("broom")
+if (!requireNamespace("magrittr", quietly = TRUE)) install.packages("magrittr")
+if (!requireNamespace("caret", quietly = TRUE)) install.packages("caret")
+if (!requireNamespace("tseries", quietly = TRUE)) install.packages("tseries")
+if (!requireNamespace("lubridate", quietly = TRUE)) install.packages("lubridate")
+if (!requireNamespace("rugarch", quietly = TRUE)) install.packages("rugarch")
+if (!requireNamespace("forecast", quietly = TRUE)) install.packages("forecast")
+
+
+# load libraries
 library(ggplot2)
 library(dplyr)
+library(ggthemes)
+library(quantmod)
+library(tidyverse)
 library(kableExtra)
+library(patchwork)
+library(vars)
+library(broom)
+library(magrittr)
+library(caret)
+library(tseries)
+library(lubridate)
+library(rugarch)
+library(forecast)
 
 
 ```
 
-## Übersicht
+## Einleitung
+
+Das Zusammenspiel zwischen Geldpolitik und Aktienmärkten ist ein zentrales Thema in der Finanzökonomie. Zentralbanken wie die US-Notenbank (Federal Reserve) steuern die Wirtschaft unter anderem durch die Anpassung der Leitzinssätze. Diese Zinsentscheidungen beeinflussen eine Vielzahl ökonomischer Variablen, einschliesslich der Kreditkosten, der Investitionstätigkeit und des Konsumverhaltens. Unser besonderes Interesse gilt dabei der Frage, wie Veränderungen der Leitzinssätze den S&P 500 Aktienindex, einen der bedeutendsten Indikatoren für die Leistung der US-amerikanischen Aktienmärkte, beeinflussen.
 
 
 ## Fragestellung
 
+> **Wie beeinflussen Veränderungen der Leitzinssätze der US-Notenbank den S&P 500 Aktienindex über die Zeit?**
+
+## Methodik
+Um diese Frage zu beantworten, werden wir eine Kombination aus ökonometrischen Modellen und Zeitreihenanalysen verwenden. Dabei berücksichtigen wir historische Daten zu Leitzinsänderungen der US-Notenbank und den entsprechenden Kursbewegungen des S&P 500. Wir werden untersuchen, wie diese Variablen miteinander korrelieren und ob sich Muster oder signifikante Trends identifizieren lassen.
+
+## Kontext und Relevanz 
+
+Die Geldpolitik der US-Notenbank spielt eine zentrale Rolle in der Steuerung der wirtschaftlichen Aktivität und der Preisstabilität. Durch die Anpassung der Leitzinsen beeinflusst die Federal Reserve die Kosten für Kredite, die Investitionsbereitschaft der Unternehmen sowie das Konsumverhalten der Verbraucher. Angesichts der Bedeutung des S&P 500 als Barometer für die US-Wirtschaft und seiner Rolle in der globalen Vermögensanlage ist es wichtig zu verstehen, wie Zinsänderungen diesen Index beeinflussen. Diese Erkenntnisse können Investoren und Entscheidungsträgern helfen, fundierte Entscheidungen zu treffen und die Auswirkungen geldpolitischer Massnahmen besser einzuschätzen.
 
 ## Datenwrangling
 ```{r}
 
 invisible(getSymbols("FEDFUNDS", src = "FRED"))
-fed_funds_df <- data.frame(date = index(FEDFUNDS), rate = coredata(FEDFUNDS))
+invisible(getSymbols("^GSPC", src = "yahoo", from = "1954-07-01", to = Sys.Date()))
 
-daten <- fed_funds_df %>%
-  rename(rate = FEDFUNDS) %>% 
-  mutate(change_rate = rate/lag(rate),
-         change_difference = rate - lag(rate)) %>% 
-  mutate(across(where(is.numeric),~round(.x,2)))
+fed_funds_df <- data.frame(date = index(FEDFUNDS), rate = coredata(FEDFUNDS))
+sp500_df <- data.frame(date = index(Cl(GSPC)), closing_price = coredata(Cl(GSPC)))
+
+
+
+# Funktionen
+## for lopp to fill up all na with values
+
+fillern_na <- function(x){
+  for (i in 1:length(x)){
+    if (is.na(x[i])){
+      x[i] <- take_rate
+    }else {
+      take_rate <- x[i]
+    }
+  }
+  return(x)
+}
+
+combined_df <- merge(sp500_df, fed_funds_df, by = "date", all = TRUE) %>% 
+  rename(rate = FEDFUNDS,
+         closing_price = GSPC.Close) %>% 
+  mutate(across(c("rate","closing_price"),~fillern_na(.)),
+         change_rate = closing_price/lag(closing_price),
+         change_difference = closing_price - lag(closing_price),
+         across(where(is.numeric),~round(.x,4))) %>% 
+  mutate(change_r_in_prozent = (change_rate - 1) * 100) %>% 
+  filter(date > as.Date("2000-01-01"))
+  
+  
+# for lopp to fill up all na with values
+
 
 #deskriptive Statistik
-desk_daten <- daten %>% 
-  summarise(min_rate = min(rate),
-            mean_rate = mean(rate),
-            max_rate = max(rate)) %>% 
-  mutate(across(where(is.numeric),~round(.x,2)))%>% 
-  kbl(caption = "Deskriptive Statisitik der Zinsen",
-      col.names = c("Minimum","Durschnitt","Maximum"),
-      align = "cccc",
-      escape = FALSE) %>% 
+desk_daten_sp500 <- combined_df %>%
+  summarise(mean = mean(closing_price),
+            median = median(closing_price),
+            sd = sd(closing_price),
+            min = min(closing_price),
+            max = max(closing_price)) %>%
+  pivot_longer(cols = everything(), names_to = "Deskriptive Daten zu S&P 500", values_to = "Werte")
+
+desk_daten_rate <- combined_df %>%
+  summarise(mean = mean(rate),
+            median = median(rate),
+            sd = sd(rate),
+            min = min(rate),
+            max = max(rate)) %>%
+  pivot_longer(cols = everything(), names_to = "Deskriptive Daten zum Leitzins", values_to = "Werte") 
+ 
+kombiniert_desk <- bind_cols(desk_daten_sp500, desk_daten_rate$Werte) %>%
+  setNames(c("Statistik", "S&P 500", "Leitzins")) %>% kbl(
+      align = "lccc",
+      escape = FALSE,
+      full_width = FALSE) %>% 
   kable_classic_2(full_width = FALSE)
-  
-  
 
-desk_daten
-head(daten)
-
-
-
-# Plots:
-
-ggplot(daten,aes(x = date,
-                 y = FEDFUNDS))+
-  geom_line()+
+# Plots
+plot_preisentwicklung_sp500 <- ggplot(combined_df,aes(x = date,y=closing_price))+
+  geom_line() +
   theme_economist()+
-  labs(title="Zinssätze der US-Notenbank:",
+  labs(title="Preisentwicklung des S&P 500",
        caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
        x = "Jahr",
-       y = "Zinssatz")+
-  theme(plot.title = element_text(face = "bold", size = 16, hjust = 0.5, color = "darkblue"))
+       y = "Preis")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
 
-ggplot(daten,aes(x = date,
-                 y = change_difference))+
-  geom_line()+
+
+desk_plot <- ggplot(combined_df,aes(y=rate))+
+  geom_boxplot(fill = "white",width = .3)+
   theme_economist()+
-  labs(title="Änderungsdifferenz der Zinssätze der US-Notenbank",
+  xlim(-1,1)+
+  labs(title="Boxplot des Leitzinses",
        caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
-       x = "Jahr",
-       y = "Änderungsdifferenz (%)") 
+       y = "Zinssatz",
+       x = "")+
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
+
+
+```
+
+### Deskriptive Statistik
+
+Die deskriptive Statistik zum Leitzins bietet wichtige Einblicke in das Verhalten des Leitzinses über den untersuchten Zeitraum. Der durchschnittliche Leitzins während dieser Zeitspanne beträgt `r desk_daten_rate$Werte[1]`%, was darauf hinweist, dass der Leitzins im Allgemeinen auf einem relativ niedrigen Niveau lag. Der Medianwert des Leitzinses liegt bei `r desk_daten_rate$Werte[2]`%, was zeigt, dass der Leitzins die meiste Zeit nahe diesem Wert verharrte, mit etwa gleich vielen Beobachtungen oberhalb und unterhalb dieses Niveaus.
+
+Die Standardabweichung des Leitzinses beträgt `r desk_daten_rate$Werte[3]`%, was eine beträchtliche Schwankungsbreite um den Mittelwert herum zeigt. Dies deutet darauf hin, dass es während des untersuchten Zeitraums erhebliche Änderungen im Leitzins gab, was auf verschiedene geldpolitische Reaktionen auf wirtschaftliche Bedingungen hinweisen könnte. Der niedrigste beobachtete Leitzinswert in diesem Zeitraum beträgt `r desk_daten_rate$Werte[4]`%, was auf Phasen extrem niedriger Zinssätze hinweist, möglicherweise im Zuge einer expansiven Geldpolitik zur Stimulierung der Wirtschaft. Der höchste beobachtete Leitzinswert beträgt `r desk_daten_rate$Werte[5]`%, was auf Phasen hinweist, in denen eine restriktive Geldpolitik zur Bekämpfung von Inflation oder Überhitzung der Wirtschaft angewendet wurde.
+
+Diese Kennzahlen liefern einen umfassenden Überblick über die zentrale Tendenz und die Streuung des Leitzinses und bieten wertvolle Einblicke in die geldpolitische Landschaft während des betrachteten Zeitraums.
+
+```{r}
+kombiniert_desk
+
+desk_plot
+
+plot_preisentwicklung_sp500
+```
+
+## Times Series Modelling
+
+```{r}
+sp500 <- Cl(GSPC)
+sp500 
+# Plot the original data
+# autoplot(sp500) + ggtitle("S&P 500 Index") + ylab("Price") + xlab("Date")
+
+# Differenzieren der Zeitreihe
+sp500_diff <- diff(sp500, differences = 1)
+
+# Plot ACF und PACF der differenzierten Zeitreihe
+acf_diff_plot <- ggAcf(sp500_diff, na.action = na.omit)+
+  theme_economist()+
+  labs(title="ACF of Differenzierten S&P 500",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "nötig",
+       y = "nötig")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
+
+pacf_diff_plot <- ggPacf(sp500_diff, na.action = na.omit)+
+  theme_economist()+
+  labs(title="PACF of Differenzierten S&P 500",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "nötig",
+       y = "nötig")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
+
+# Display ACF and PACF plots
+print(acf_diff_plot)
+print(pacf_diff_plot)
+
+# Teste verschiedene ARIMA-Modelle
+best_aic <- Inf
+best_order <- c(0,0,0)
+best_model <- NULL
+
+for (p in 0:5) {
+  for (d in 0:2) {
+    for (q in 0:5) {
+      model <- tryCatch(auto.arima(sp500, seasonal = FALSE, max.p = p, max.d = d, max.q = q), error = function(e) NULL)
+      if (!is.null(model)) {
+        if (model$aic < best_aic) {
+          best_aic <- model$aic
+          best_order <- c(p, d, q)
+          best_model <- model
+        }
+      }
+    }
+  }
+}
+
+# Zusammenfassung des besten Modells
+#summary(best_model)
+
+# Residualanalyse des besten Modells
+residuals_best_model <- residuals(best_model)
+
+# Plot der Residuen
+autoplot(residuals_best_model) +
+  theme_economist()+
+  labs(title="Residuals of Best ARIMA Model",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "Time",
+       y = "Residuals")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
+
+# ACF und PACF der Residuen plotten
+acf_resid <- ggAcf(residuals_best_model)+
+  theme_economist()+
+  labs(title="ACF of Residuals",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "nötig",
+       y = "nötig")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
+
+
+pacf_resid <- ggPacf(residuals_best_model)+
+theme_economist()+
+  labs(title="PACF of Residuals",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "nötig",
+       y = "nötig")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))
+
+
+# Display residual plots
+print(acf_resid)
+print(pacf_resid)
+
+# Ljung-Box-Test für Unabhängigkeit der Residuen
+box_test <- Box.test(residuals_best_model, lag = 20, type = "Ljung-Box")
+print(box_test)
+
+```
+```{r}
+# GARCH model specification
+spec <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                   mean.model = list(armaOrder = best_order, include.mean = TRUE),
+                   distribution.model = "norm")
+
+# Fit the GARCH model
+garch_model <- tryCatch(ugarchfit(spec = spec, data = sp500_diff), error = function(e) NULL)
+
+if (!is.null(garch_model)) {
+  # Zusammenfassung des GARCH-Modells
+  print(garch_model)
+  
+  # Vorhersage des GARCH-Modells
+  garch_forecast <- ugarchforecast(garch_model, n.ahead = 252)
+  
+  # Visualisierung der GARCH-Vorhersage
+  garch_forecast_mean <- garch_forecast@forecast$seriesFor
+  garch_forecast_lower <- garch_forecast@forecast$sigmaFor * qnorm(0.025)
+  garch_forecast_upper <- garch_forecast@forecast$sigmaFor * qnorm(0.975)
+  
+  forecast_dates <- index(sp500)[length(sp500)] + 1:252
+  
+  garch_forecast_df <- data.frame(
+    Date = forecast_dates,
+    Mean = as.numeric(garch_forecast_mean),
+    Lower = as.numeric(garch_forecast_mean + garch_forecast_lower),
+    Upper = as.numeric(garch_forecast_mean + garch_forecast_upper)
+  )
+  
+  # Plot der GARCH-Vorhersage
+  ggplot() +
+    geom_line(data = as.data.frame(sp500), aes(x = index(sp500), y = sp500), color = "black") +
+    geom_line(data = garch_forecast_df, aes(x = Date, y = Mean), color = "blue") +
+    geom_ribbon(data = garch_forecast_df, aes(x = Date, ymin = Lower, ymax = Upper), fill = "lightblue", alpha = 0.5) +
+    ggtitle("GARCH Forecast for S&P 500") +
+    xlab("Date") +
+    ylab("S&P 500") +
+    theme_minimal() +
+    scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "2 years")
+}
+
+# Plot der Vorhersage des besten ARIMA-Modells
+forecast_best_model <- forecast(best_model, h = 252)
+
+forecast_dates <- index(sp500)[length(sp500)] + 1:252
+
+last_observation <- as.Date(index(sp500)[length(sp500)])
+
+forecast_df <- data.frame(
+  Date = c(index(sp500), forecast_dates),
+  Value = c(as.numeric(sp500), as.numeric(forecast_best_model$mean)),
+  Lower = c(rep(NA, length(sp500)), as.numeric(forecast_best_model$lower[, 2])),
+  Upper = c(rep(NA, length(sp500)), as.numeric(forecast_best_model$upper[, 2]))
+)
+
+# Plot der Vorhersage und der letzten Beobachtungen
+ggplot() +
+  geom_line(data = forecast_df, aes(x = Date, y = Value), color = "blue") +
+  geom_ribbon(data = forecast_df, aes(x = Date, ymin = Lower, ymax = Upper), fill = "lightblue", alpha = 0.5) +
+  theme_economist()+
+  labs(title="Forecast for S&P 500 with ARIMA Model",
+       caption = "Quelle: Board of Governors of the Federal Reserve System (US)",
+       x = "Date",
+       y = "S&P 500")+
+  theme(plot.title = element_text( size = 11, hjust = 0, color = "darkblue"))+
+  scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "2 years") +
+  coord_cartesian(xlim = c(as.Date(last_observation - 100), as.Date(last_observation + 252)))
 
 ```
 
 
 
-## Times Series Modelling
 
-
-## Analysen
-
+## Ergebnisse
+Ergebnisse beschreiben
 
 ## Diskussion
+Interprtation der Ergebnisse 
 
-
+## Fazit
+Fragestellung beantworten
 
 ## Referenzen
 ::: {#refs}
