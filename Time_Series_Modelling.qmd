@@ -16,7 +16,7 @@ format:
      page-layout: full
 
 knitr: 
-  opts_chunk: 
+  opts_chunk:
     echo: false
     message: false
     warning: false
@@ -116,17 +116,40 @@ fillern_na <- function(x){
   return(x)
 }
 
-combined_df <- merge(sp500_df, fed_funds_df, by = "date", all = TRUE) %>% 
+combined_df <- merge(sp500_df,
+                     fed_funds_df, 
+                     by = "date", 
+                     all = TRUE) %>% 
   rename(rate = FEDFUNDS,
          closing_price = GSPC.Close) %>% 
   mutate(across(c("rate","closing_price"),~fillern_na(.)),
-         change_rate = closing_price/lag(closing_price),
+         change_closing_price = closing_price/lag(closing_price),
+         change_rate =rate/lag(rate),
          change_difference = closing_price - lag(closing_price),
          across(where(is.numeric),~round(.x,4))) %>% 
-  mutate(change_r_in_prozent = (change_rate - 1) * 100) %>% 
+  mutate(change_cp_prozent = (change_closing_price - 1) * 100,
+         change_rate_prozent = (change_rate -1) * 100)  %>% 
   filter(date > as.Date("2000-01-01"))
-  
-  
+
+
+# hiermit gruppiere ich zinsätze monatlich
+monthly_df <- combined_df %>% 
+  mutate(month = floor_date(date, "month")) %>%
+  group_by(month) %>%summarise(
+    sum_rate = sum(change_rate_prozent, na.rm = TRUE),
+    sum_closing = sum(change_cp_prozent, na.rm = TRUE)
+  )
+
+
+ggplot(monthly_df, aes(x = month)) +
+  geom_line(aes(y = sum_rate, color = "Leitzins")) +
+  geom_line(aes(y = sum_closing, color = "S&P500")) +
+  labs(title = "Monatliche Prozentuale Veränderungen der Zinsraten",
+       x = "Monat",
+       y = "Prozentuale Veränderung",
+       color = "Zinsrate") +
+  theme_economist()
+
 # for lopp to fill up all na with values
 
 
@@ -148,7 +171,9 @@ desk_daten_rate <- combined_df %>%
   pivot_longer(cols = everything(), names_to = "Deskriptive Daten zum Leitzins", values_to = "Werte") 
  
 kombiniert_desk <- bind_cols(desk_daten_sp500, desk_daten_rate$Werte) %>%
-  setNames(c("Statistik", "S&P 500", "Leitzins")) %>% kbl(
+  setNames(c("Statistik", "S&P 500", "Leitzins")) %>%
+  mutate(across(where(is.numeric),~round(.x,2))) %>% 
+  kbl(
       align = "lccc",
       escape = FALSE,
       full_width = FALSE) %>% 
