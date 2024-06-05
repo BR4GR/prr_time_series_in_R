@@ -1,0 +1,66 @@
+---
+title: "Presentation"
+format: revealjs
+editor: visual
+---
+
+# Einleitung
+
+Das Zusammenspiel zwischen Geldpolitik und Aktienmärkten ist ein zentrales Thema in der Finanzökonomie. Zentralbanken wie die US-Notenbank (Federal Reserve) steuern die Wirtschaft durch die Anpassung der Leitzinssätze. Unser besonderes Interesse gilt der Frage, wie Veränderungen der Leitzinssätze den S&P 500 Aktienindex beeinflussen.
+
+
+# Fragestellung
+
+> **Wie beeinflussen Veränderungen der Leitzinssätze der US-Notenbank den S&P 500 Aktienindex über die Zeit?**
+
+
+# Methodik
+
+Um diese Frage zu beantworten, verwenden wir ökonometrische Modelle und Zeitreihenanalysen. Wir berücksichtigen historische Daten zu Leitzinsänderungen der US-Notenbank und den Kursbewegungen des S&P 500.
+
+
+# Kontext und Relevanz 
+
+Die Geldpolitik der US-Notenbank spielt eine zentrale Rolle in der Steuerung der wirtschaftlichen Aktivität. Der S&P 500 als Barometer der US-Wirtschaft ist entscheidend, um die Auswirkungen von Zinsänderungen zu verstehen.
+
+
+# Datenwrangling
+
+![Monatliche Prozentuale Veränderungen der Zinsraten](zinsraten.png)
+
+Die Grafik zeigt die monatlichen prozentualen Veränderungen der Zinsraten und des S&P 500. Die Daten wurden bereinigt und in prozentuale Veränderungen umgewandelt, um die Analyse zu erleichtern.
+
+# Zeitreihenmodellierung
+
+![ACF der differenzierten S&P 500 Daten](acf_snp500.png)
+
+Die ACF und PACF der differenzierten S&P 500 Daten zeigen die Autokorrelation und partielle Autokorrelation über verschiedene Lags. Diese Plots helfen bei der Identifikation geeigneter Modelle für die Zeitreihenanalyse.
+
+
+
+# GARCH-Modellierung
+
+![Residuals of Best ARIMA Model](residuals_best_arima.png)
+
+Die Residuenanalyse des besten ARIMA-Modells zeigt die verbleibenden Fehler nach der Modellierung. Die meisten Residuen scheinen zufällig verteilt zu sein, was auf ein gut angepasstes Modell hinweist.
+
+
+# Ergebnisse
+
+Zinsänderungen werden oft von Zentralbanken wie der Federal Reserve beschlossen und in der Regel monatlich oder vierteljährlich bekannt gegeben. Diese Änderungen sind strategische Maßnahmen, um die wirtschaftliche Aktivität zu steuern, Inflation zu kontrollieren und die wirtschaftliche Stabilität zu fördern.
+
+
+# Diskussion
+
+Zinsänderungen haben einen komplexen Einfluss auf den S&P 500 Index. Die Ergebnisse der ACF- und PACF-Analysen zeigen, dass es bestimmte Zeiträume gibt, in denen der Markt stark auf Zinsänderungen reagiert. Diese Reaktionen sind jedoch nicht konstant und können durch andere wirtschaftliche Ereignisse moduliert werden.
+
+
+# Fazit
+
+Es konnte keine enügende Korrelation gefunden werden.
+Trotzdem konnten wir einiges über das Programieren mit R und Timeseries Lernen
+
+# Danke
+
+# Fragen ?
+
