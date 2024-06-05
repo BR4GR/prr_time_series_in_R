@@ -42,23 +42,18 @@ Die ACF und PACF der differenzierten S&P 500 Daten zeigen die Autokorrelation un
 
 ![Residuals of Best ARIMA Model](residuals_best_arima.png)
 
-Die Residuenanalyse des besten ARIMA-Modells zeigt die verbleibenden Fehler nach der Modellierung. Die meisten Residuen scheinen zufällig verteilt zu sein, was auf ein gut angepasstes Modell hinweist.
+Die Residuenanalyse des besten ARIMA-Modells zeigt die verbleibenden Fehler nach der Modellierung. Die meisten Residuen scheinen systematisch verteilt zu sein, was auf ein gut angepasstes Modell hinweist.
 
 
-# Ergebnisse
-
-Zinsänderungen werden oft von Zentralbanken wie der Federal Reserve beschlossen und in der Regel monatlich oder vierteljährlich bekannt gegeben. Diese Änderungen sind strategische Maßnahmen, um die wirtschaftliche Aktivität zu steuern, Inflation zu kontrollieren und die wirtschaftliche Stabilität zu fördern.
-
-
-# Diskussion
+# Ergebnis und Diskussion
 
 Zinsänderungen haben einen komplexen Einfluss auf den S&P 500 Index. Die Ergebnisse der ACF- und PACF-Analysen zeigen, dass es bestimmte Zeiträume gibt, in denen der Markt stark auf Zinsänderungen reagiert. Diese Reaktionen sind jedoch nicht konstant und können durch andere wirtschaftliche Ereignisse moduliert werden.
 
 
 # Fazit
 
-Es konnte keine enügende Korrelation gefunden werden.
-Trotzdem konnten wir einiges über das Programieren mit R und Timeseries Lernen
+Es konnte keine genügende Korrelation gefunden werden.
+Trotzdem konnten wir einiges über das Programieren mit R und Timeseries lernen.
 
 # Danke
 
