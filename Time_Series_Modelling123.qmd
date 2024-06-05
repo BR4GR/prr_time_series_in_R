@@ -159,8 +159,6 @@ plot_korrelation<- ggplot(monthly_df, aes(x = month)) +
        color = "Zinsrate") +
   theme_economist()
 
-# for lopp to fill up all na with values
-
 
 #deskriptive Statistik
 ######################
