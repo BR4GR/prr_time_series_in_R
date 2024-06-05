@@ -30,13 +30,28 @@ Die Geldpolitik der US-Notenbank spielt eine zentrale Rolle in der Steuerung der
 
 Die Grafik zeigt die monatlichen prozentualen Veränderungen der Zinsraten und des S&P 500. Die Daten wurden bereinigt und in prozentuale Veränderungen umgewandelt, um die Analyse zu erleichtern.
 
+# Korrelation
+
+**-0.0272596** nicht signifikant
+
+Der Korrelationskoeffizient, oft als **r** bezeichnet, misst die Stärke und Richtung der linearen Beziehung zwischen zwei Variablen:
+
+- **r = 1**  perfekte positive Korrelation.
+- **r = -1**  perfekte negative Korrelation .
+- **r = 0**  keine Korrelation.
+
+
+
 # Zeitreihenmodellierung
 
-![ACF der differenzierten S&P 500 Daten](acf_snp500.png)
 
 Die ACF und PACF der differenzierten S&P 500 Daten zeigen die Autokorrelation und partielle Autokorrelation über verschiedene Lags. Diese Plots helfen bei der Identifikation geeigneter Modelle für die Zeitreihenanalyse.
 
-
+# ACF
+![ACF der differenzierten S&P 500 Daten](acf_snp500.png)
+  
+# PACF
+![PACF der differenzierten S&P 500 Daten](pacf_snp500.png)
 
 # GARCH-Modellierung
 
